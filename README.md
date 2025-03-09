@@ -28,42 +28,6 @@ SUPABASE_API_KEY=your-supabase-api-key
 SUPABASE_BUCKET=videos
 ```
 
-### Database Setup
-
-Create the following table in your Supabase database:
-
-```sql
-CREATE TABLE videos (
-  id UUID PRIMARY KEY,
-  title TEXT NOT NULL,
-  description TEXT,
-  file_path TEXT NOT NULL,
-  thumbnail_path TEXT,
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-);
-
--- Add policy to allow anon access to videos
-CREATE POLICY "Allow anon access to videos" 
-  ON videos FOR SELECT 
-  USING (true);
-
--- Add policy to enable insert with auth
-CREATE POLICY "Allow authenticated users to insert videos" 
-  ON videos FOR INSERT 
-  WITH CHECK (auth.role() = 'authenticated');
-
--- Add policy to enable update with auth
-CREATE POLICY "Allow users to update their own videos" 
-  ON videos FOR UPDATE 
-  USING (auth.uid() = user_id);
-
--- Add policy to enable delete with auth
-CREATE POLICY "Allow users to delete their own videos" 
-  ON videos FOR DELETE 
-  USING (auth.uid() = user_id);
-```
-
 ## Building and Running
 
 Build and run the service:
@@ -165,7 +129,7 @@ class VideoService {
         'description': description,
       }),
     );
-    
+
     if (response.statusCode == 200) {
       final data = jsonDecode(response.body);
       return data['id'];
@@ -179,7 +143,7 @@ class VideoService {
       'POST',
       Uri.parse('$baseUrl/videos/$videoId/upload'),
     );
-    
+
     request.files.add(
       await http.MultipartFile.fromPath(
         'video',
@@ -187,7 +151,7 @@ class VideoService {
         contentType: MediaType('video', 'mp4'),
       ),
     );
-    
+
     var response = await request.send();
     if (response.statusCode != 200) {
       throw Exception('Failed to upload video');
