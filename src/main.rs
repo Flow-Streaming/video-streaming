@@ -7,19 +7,20 @@ use std::net::SocketAddr;
 
 use anyhow::Result;
 use axum::{
-    Router,
     routing::{get, post},
+    Router,
 };
+use reqwest::Method;
 use tokio::net::TcpListener;
 use tower_http::cors::{Any, CorsLayer};
-use tracing::{Level, info};
+use tracing::{info, Level};
 use tracing_subscriber::FmtSubscriber;
 
 use handlers::videos;
 
 #[tokio::main]
 async fn main() -> Result<()> {
-    // Initialize tracing
+    // Initialize tracing with more detailed output
     let subscriber = FmtSubscriber::builder()
         .with_max_level(Level::INFO)
         .finish();
@@ -27,24 +28,28 @@ async fn main() -> Result<()> {
 
     // Load configuration
     let state = config::load_config();
+    info!("Configuration loaded successfully");
 
-    // CORS middleware
+    // Enhanced CORS middleware
     let cors = CorsLayer::new()
         .allow_origin(Any)
-        .allow_methods(Any)
+        .allow_methods([Method::GET, Method::POST, Method::DELETE, Method::OPTIONS])
         .allow_headers(Any);
+
+    info!("Setting up routes");
 
     // Build the application router
     let app = Router::new()
         .route(
             "/videos",
-            get(videos::list_videos).post(videos::create_video),
+            get(videos::list_videos)
+                .post(videos::create_video)
         )
         .route(
             "/videos/{id}",
-            get(videos::get_video).delete(videos::delete_video),
+            get(videos::get_video)
+                .delete(videos::delete_video)
         )
-        .route("/videos/{id}/like", post(videos::like_video))
         .route("/videos/{id}/upload", post(videos::upload_video))
         .route("/videos/{id}/stream", get(videos::stream_video))
         .layer(cors)
@@ -52,9 +57,11 @@ async fn main() -> Result<()> {
 
     // Start the server
     let addr = SocketAddr::from(([0, 0, 0, 0], 3000));
-    info!("Server listening on {}", addr);
+    info!("Server starting on {}", addr);
 
     let listener = TcpListener::bind(addr).await?;
+    info!("Server listening on {}", addr);
+
     axum::serve(listener, app).await?;
 
     Ok(())

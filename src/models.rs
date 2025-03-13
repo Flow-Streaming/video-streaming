@@ -7,9 +7,10 @@ pub struct Video {
     pub description: Option<String>,
     pub video_url: String,
     pub thumbnail_url: Option<String>,
-    pub user_id: String,
     pub created_at: String,
+    #[serde(default)]
     pub likes: i32,
+    #[serde(default)]
     pub views: i32,
 }
 
@@ -17,9 +18,9 @@ pub struct Video {
 pub struct CreateVideoRequest {
     pub title: String,
     pub description: Option<String>,
-    pub user_id: String, // Added user_id
 }
 
+// Ensure this exactly matches what the frontend expects
 #[derive(Debug, Serialize, Deserialize)]
 pub struct CreateVideoResponse {
     pub id: String,
@@ -35,9 +36,6 @@ pub struct VideoMetadata {
     pub stream_url: String,
     pub thumbnail_url: Option<String>,
     pub created_at: String,
-    pub likes: i32,
-    pub views: i32,
-    pub user_id: String,
 }
 
 #[derive(Clone)]

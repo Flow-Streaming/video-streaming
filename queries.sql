@@ -4,7 +4,6 @@ create table videos (
   description text,
   video_url text not null,
   thumbnail_url text,
-  user_id uuid references auth.users not null,
   created_at timestamp with time zone default timezone('utc'::text, now()) not null,
   likes integer default 0,
   views integer default 0
