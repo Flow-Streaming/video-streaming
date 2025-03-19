@@ -1,33 +1,30 @@
-mod config;
-mod handlers;
-mod models;
-mod services;
-
-use std::net::SocketAddr;
-
 use anyhow::Result;
 use axum::{
-    routing::{get, post},
-    Router,
+    Router, // routing::{get, post},
+    routing::post,
 };
 use reqwest::Method;
+use std::net::SocketAddr;
 use tokio::net::TcpListener;
 use tower_http::cors::{Any, CorsLayer};
-use tracing::{info, Level};
+use tracing::{Level, info};
 use tracing_subscriber::FmtSubscriber;
 
-use handlers::videos;
+pub mod config;
+pub mod handler;
+pub mod models;
+pub mod supabase;
 
 #[tokio::main]
 async fn main() -> Result<()> {
-    // Initialize tracing with more detailed output
     let subscriber = FmtSubscriber::builder()
         .with_max_level(Level::INFO)
         .finish();
     tracing::subscriber::set_global_default(subscriber).expect("setting default subscriber failed");
 
     // Load configuration
-    let state = config::load_config();
+    let load_config = config::load_config();
+    let state = load_config;
     info!("Configuration loaded successfully");
 
     // Enhanced CORS middleware
@@ -40,18 +37,14 @@ async fn main() -> Result<()> {
 
     // Build the application router
     let app = Router::new()
-        .route(
-            "/videos",
-            get(videos::list_videos)
-                .post(videos::create_video)
-        )
-        .route(
-            "/videos/{id}",
-            get(videos::get_video)
-                .delete(videos::delete_video)
-        )
-        .route("/videos/{id}/upload", post(videos::upload_video))
-        .route("/videos/{id}/stream", get(videos::stream_video))
+        .route("/videos", post(handler::upload_video))
+        .route("/shows", post(handler::create_show))
+        // .route(
+        //     "/videos/{id}",
+        //     get(videos::get_video).delete(videos::delete_video),
+        // )
+        // // .route("/videos/{id}/upload", post(videos::upload_video))
+        // .route("/videos/{id}/stream", get(videos::stream_video))
         .layer(cors)
         .with_state(state);
 
@@ -59,9 +52,11 @@ async fn main() -> Result<()> {
     let addr = SocketAddr::from(([0, 0, 0, 0], 3000));
     info!("Server starting on {}", addr);
 
+    // Use tokio's TcpListener instead of std's
     let listener = TcpListener::bind(addr).await?;
     info!("Server listening on {}", addr);
 
+    // await the serve call instead of using the ? operator
     axum::serve(listener, app).await?;
 
     Ok(())

@@ -44,3 +44,27 @@ pub struct AppState {
     pub supabase_api_key: String,
     pub supabase_bucket: String,
 }
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct Show {
+    #[serde(default)]
+    pub id: Option<String>,
+    pub title: String,
+    pub description: String,
+    pub release_date: String, // in ISO format: YYYY-MM-DD
+    pub thumbnail_url: String,
+    pub episode_count: i32,
+    pub genre: String,
+    pub rating: f32,
+    pub status: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub created_at: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub updated_at: Option<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct CreateShowResponse {
+    pub id: String,
+    pub title: String,
+}
