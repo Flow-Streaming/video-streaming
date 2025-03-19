@@ -160,7 +160,6 @@
     </div>
 
     <button id="uploadBtn">Upload Video</button>
-    <button id="testCreateBtn">Test Create Video Only</button>
     <button id="toggleDebug" class="debug-toggle">Toggle Debug Info</button>
 
     <div class="progress-container" id="progressContainer">
@@ -199,7 +198,6 @@
         const videoFileInput = document.getElementById('videoFile');
         const thumbnailFileInput = document.getElementById('thumbnailFile');
         const uploadBtn = document.getElementById('uploadBtn');
-        const testCreateBtn = document.getElementById('testCreateBtn');
         const toggleDebugBtn = document.getElementById('toggleDebug');
         const progressContainer = document.getElementById('progressContainer');
         const progressBar = document.getElementById('progressBar');
@@ -245,70 +243,7 @@
             }
         });
 
-        // Test just the create video API
-        testCreateBtn.addEventListener('click', async function() {
-            // Reset messages
-            errorMessage.textContent = '';
-            successMessage.textContent = '';
-
-            if (!titleInput.value.trim()) {
-                errorMessage.textContent = "Please enter a video title";
-                return;
-            }
-
-            try {
-                // Build the request payload
-                const createPayload = {
-                    title: titleInput.value,
-                    description: descriptionInput.value || null
-                };
-
-                // Update debug info
-                updateDebug(createPayload);
-
-                console.log("Sending create request:", createPayload);
-
-                const createResponse = await fetch(`${API_BASE_URL}/videos`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify(createPayload)
-                });
-
-                // Capture response headers
-                const headersText = Array.from(createResponse.headers.entries())
-                    .map(([key, value]) => `${key}: ${value}`)
-                    .join('\n');
-
-                // Get response text
-                const responseText = await createResponse.text();
-
-                // Update debug information
-                updateDebug(null, headersText, responseText);
-
-                if (!createResponse.ok) {
-                    throw new Error(`Failed to create video (${createResponse.status}): ${responseText}`);
-                }
-
-                // Try to parse JSON
-                let parsedData;
-                try {
-                    parsedData = JSON.parse(responseText);
-                    updateDebug(null, null, null, parsedData);
-
-                    successMessage.textContent = `Video entry created with ID: ${parsedData.id || 'unknown'}`;
-                } catch (e) {
-                    throw new Error(`Failed to parse JSON response: ${e.message}. Raw response: ${responseText}`);
-                }
-
-            } catch (error) {
-                console.error('API error:', error);
-                errorMessage.textContent = error.message;
-            }
-        });
-
-        // Full upload process
+        // Upload video process (now a single request)
         uploadBtn.addEventListener('click', async function() {
             // Reset messages
             errorMessage.textContent = '';
@@ -328,67 +263,15 @@
             // Show progress
             progressContainer.style.display = 'block';
             uploadBtn.disabled = true;
-            testCreateBtn.disabled = true;
 
             try {
-                // First create the video entry
-                statusDiv.textContent = "Creating video entry...";
-                progressBar.style.width = '10%';
-
-                // Build the request payload
-                const createPayload = {
-                    title: titleInput.value,
-                    description: descriptionInput.value || null
-                };
-
-                // Update debug info
-                updateDebug(createPayload);
-
-                console.log("Sending create request:", createPayload);
-
-                // Make the API call with explicit content type
-                const createResponse = await fetch(`${API_BASE_URL}/videos`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Accept': 'application/json'
-                    },
-                    body: JSON.stringify(createPayload)
-                });
-
-                // Capture response headers
-                const headersText = Array.from(createResponse.headers.entries())
-                    .map(([key, value]) => `${key}: ${value}`)
-                    .join('\n');
-
-                // Get response text
-                const responseText = await createResponse.text();
-
-                // Update debug information
-                updateDebug(null, headersText, responseText);
-
-                if (!createResponse.ok) {
-                    throw new Error(`Failed to create video (${createResponse.status}): ${responseText}`);
-                }
-
-                // Try to parse JSON
-                let createData;
-                try {
-                    createData = JSON.parse(responseText);
-                    updateDebug(null, null, null, createData);
-                } catch (e) {
-                    throw new Error(`Failed to parse JSON response: ${e.message}. Raw response: ${responseText}`);
-                }
-
-                if (!createData || !createData.upload_url) {
-                    throw new Error(`Invalid server response: missing required fields.`);
-                }
-
-                // Now upload the video file
-                statusDiv.textContent = "Uploading video file...";
+                // Prepare multipart form data with all information
+                statusDiv.textContent = "Uploading video...";
                 progressBar.style.width = '30%';
 
                 const formData = new FormData();
+                formData.append('title', titleInput.value);
+                formData.append('description', descriptionInput.value || '');
                 formData.append('video', videoFileInput.files[0]);
 
                 // Add thumbnail if present
@@ -396,23 +279,47 @@
                     formData.append('thumbnail', thumbnailFileInput.files[0]);
                 }
 
-                const uploadUrl = createData.upload_url.startsWith('/')
-                    ? `${API_BASE_URL}${createData.upload_url}`
-                    : `${API_BASE_URL}/${createData.upload_url}`;
+                // For debugging - log what we're sending
+                const debugPayload = {
+                    title: titleInput.value,
+                    description: descriptionInput.value || '',
+                    video: videoFileInput.files[0].name,
+                    thumbnail: thumbnailFileInput.files && thumbnailFileInput.files[0]
+                        ? thumbnailFileInput.files[0].name : 'none'
+                };
+                updateDebug(debugPayload);
 
-                console.log("Uploading to:", uploadUrl);
+                console.log("Sending request to:", `${API_BASE_URL}/videos`);
 
-                const uploadResponse = await fetch(uploadUrl, {
+                // Make the API call - IMPORTANT: Do NOT set content-type header for multipart/form-data
+                // The browser will set it automatically with the correct boundary
+                const response = await fetch(`${API_BASE_URL}/videos`, {
                     method: 'POST',
-                    headers: {
-                      'Content-Type': 'multipart/form-data'
-                    },
                     body: formData
                 });
 
-                if (!uploadResponse.ok) {
-                    const errorText = await uploadResponse.text();
-                    throw new Error(`Failed to upload video (${uploadResponse.status}): ${errorText}`);
+                // Capture response headers
+                const headersText = Array.from(response.headers.entries())
+                    .map(([key, value]) => `${key}: ${value}`)
+                    .join('\n');
+
+                // Get response text
+                const responseText = await response.text();
+
+                // Update debug information
+                updateDebug(null, headersText, responseText);
+
+                if (!response.ok) {
+                    throw new Error(`Failed to upload video (${response.status}): ${responseText}`);
+                }
+
+                // Try to parse JSON response
+                let responseData;
+                try {
+                    responseData = JSON.parse(responseText);
+                    updateDebug(null, null, null, responseData);
+                } catch (e) {
+                    console.warn("Could not parse response as JSON:", e);
                 }
 
                 // Complete
@@ -430,7 +337,6 @@
                     thumbnailPreview.style.display = 'none';
                     progressContainer.style.display = 'none';
                     uploadBtn.disabled = false;
-                    testCreateBtn.disabled = false;
                 }, 3000);
 
             } catch (error) {
@@ -439,7 +345,6 @@
                 statusDiv.textContent = "Upload failed";
                 progressBar.style.width = '0%';
                 uploadBtn.disabled = false;
-                testCreateBtn.disabled = false;
             }
         });
     </script>
