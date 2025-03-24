@@ -14,6 +14,7 @@ pub mod config;
 pub mod handler;
 pub mod models;
 pub mod supabase;
+pub mod video_processor;
 
 #[tokio::main]
 async fn main() -> Result<()> {

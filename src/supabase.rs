@@ -25,6 +25,37 @@ impl SupabaseService {
             .insert_header("apikey", &self.state.supabase_api_key)
     }
 
+    pub async fn upload_file_with_content_type(
+        &self,
+        file_name: &str,
+        content: Vec<u8>,
+        content_type: &str,
+    ) -> Result<(), (StatusCode, String)> {
+        let storage_url = format!(
+            "{}/storage/v1/object/{}/{}",
+            self.state.supabase_url, VIDEO_BUCKET, file_name
+        );
+
+        let response = self
+            .client
+            .post(&storage_url)
+            .header("apikey", &self.state.supabase_api_key)
+            .header("Content-Type", content_type)
+            .body(content)
+            .send()
+            .await
+            .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+
+        if !response.status().is_success() {
+            return Err((
+                StatusCode::INTERNAL_SERVER_ERROR,
+                format!("Failed to upload to storage: {}", response.status()),
+            ));
+        }
+
+        Ok(())
+    }
+
     // pub async fn query_single<T: DeserializeOwned>(
     //     &self,
     //     table: &str,

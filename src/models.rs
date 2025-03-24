@@ -68,3 +68,10 @@ pub struct CreateShowResponse {
     pub id: String,
     pub title: String,
 }
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct VideoUploadResponse {
+    pub id: String,
+    pub video_url: String,
+    pub thumbnail_url: Option<String>,
+}
